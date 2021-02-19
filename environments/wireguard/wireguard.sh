@@ -59,5 +59,5 @@ ufw enable
 wg-quick up wg0
 systemctl enable wg-quick@wg0
 
-## system upgrade and reboot
-apt-get full-upgrade -y && shutdown -r 0
+## system reboot
+shutdown -r 0
