@@ -1,0 +1,188 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2018-05-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+	  "adminUsername": {
+		"type": "string",
+		"minLength": 1,
+		"defaultValue": "godfather",
+		"metadata": {
+		  "description": "User name for the Virtual Machine."
+		}
+	  },
+	  "adminPassword": {
+		"type": "securestring",
+		"metadata": {
+		  "description": "Password for the Virtual Machine."
+		}
+	  },
+	  "_artifactsLocation": {
+		"type": "string",
+		"defaultValue": "",
+		"metadata": {
+		  "description": "Auto-generated container in staging storage account to receive post-build staging folder upload"
+		}
+	  },
+	  "_artifactsLocationSasToken": {
+		"type": "securestring",
+		"defaultValue": "",
+		"metadata": {
+		  "description": "Auto-generated token to access _artifactsLocation"
+		}
+	  }
+	},
+	"variables": {
+		"resourcePrefix": "[concat('wg-', uniqueString(resourceGroup().id))]",
+		"virtualMachineName": "[concat(variables('resourcePrefix'), '-vm')]",
+		"networkSecurityGroupName": "[concat(variables('resourcePrefix'), '-nsg')]",
+		"publicIPName": "[concat(variables('resourcePrefix'), '-pip')]",
+		"networkInterfaceName": "[concat(variables('resourcePrefix'), '-nic')]",
+		"lab_subnetId": "$(LabSubnetId)"
+	},
+	"resources": [
+	  {
+		"apiVersion": "2018-01-01",
+		"type": "Microsoft.Network/networkSecurityGroups",
+		"name": "[variables('networkSecurityGroupName')]",
+		"location": "[resourceGroup().location]",
+		"properties": {
+		  "securityRules": [
+			{
+			  "name": "UDP51820",
+			  "properties": {
+				"description": "Allow Wireguard",
+				"protocol": "Udp",
+				"sourcePortRange": "*",
+				"destinationPortRange": "51820",
+				"sourceAddressPrefix": "Internet",
+				"destinationAddressPrefix": "*",
+				"access": "Allow",
+				"priority": 1001,
+				"direction": "Inbound"
+			  }
+			},
+			{
+			  "name": "TCP22",
+			  "properties": {
+				"description": "Allow SSH",
+				"protocol": "Tcp",
+				"sourcePortRange": "*",
+				"destinationPortRange": "22",
+				"sourceAddressPrefix": "Internet",
+				"destinationAddressPrefix": "*",
+				"access": "Allow",
+				"priority": 1002,
+				"direction": "Inbound"
+			  }
+			}
+		  ]
+		}
+	  },
+	  {
+		"apiVersion": "2018-08-01",
+		"type": "Microsoft.Network/publicIPAddresses",
+		"name": "[variables('publicIPName')]",
+		"location": "[resourceGroup().location]",
+		"properties": {
+		  "publicIPAllocationMethod": "Dynamic",
+		  "dnsSettings": {
+			"domainNameLabel": "[variables('resourcePrefix')]"
+		  }
+		}
+	  },
+	  {
+		"apiVersion": "2018-08-01",
+		"type": "Microsoft.Network/networkInterfaces",
+		"name": "[variables('networkInterfaceName')]",
+		"location": "[resourceGroup().location]",
+		"dependsOn": [
+		  "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))]",
+		  "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+		],
+		"properties": {
+		  "ipConfigurations": [
+			{
+			  "name": "ipconfig1",
+			  "properties": {
+				"privateIPAllocationMethod": "Dynamic",
+				"publicIPAddress": {
+				  "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))]"
+				},
+				"subnet": {
+				  "id": "[variables('lab_subnetId')]"
+				}
+			  }
+			}
+		  ],
+		  "networkSecurityGroup": {
+			"id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+		  },
+		  "enableAcceleratedNetworking": true
+		}
+	  },
+	  {
+		"apiVersion": "2018-10-01",
+		"type": "Microsoft.Compute/virtualMachines",
+		"name": "[variables('virtualMachineName')]",
+		"location": "[resourceGroup().location]",
+		"tags": {
+		  "displayName": "VirtualMachine"
+		},
+		"dependsOn": [
+		  "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+		],
+		"properties": {
+		  "hardwareProfile": {
+			"vmSize": "Standard_DS2_v2"
+		  },
+		  "osProfile": {
+			"computerName": "[variables('virtualMachineName')]",
+			"adminUsername": "[parameters('adminUsername')]",
+			"adminPassword": "[parameters('adminPassword')]"
+		  },
+		  "storageProfile": {
+			"imageReference": {
+			  "publisher": "Canonical",
+			  "offer": "UbuntuServer",
+			  "sku": "20.04-LTS",
+			  "version": "latest"
+			}
+		  },
+		  "networkProfile": {
+			"networkInterfaces": [
+			  {
+				"id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+			  }
+			]
+		  }
+		},
+		"resources": [
+		  {
+			"name": "AzureWireGuard",
+			"type": "extensions",
+			"location": "[resourceGroup().location]",
+			"apiVersion": "2016-03-30",
+			"dependsOn": [
+			  "[resourceId('Microsoft.Compute/virtualMachines', variables('virtualMachineName'))]"
+			],
+			"tags": {
+			  "displayName": "AzureWireGuard"
+			},
+			"properties": {
+			  "publisher": "Microsoft.Azure.Extensions",
+			  "type": "CustomScript",
+			  "typeHandlerVersion": "2.0",
+			  "autoUpgradeMinorVersion": true,
+			  "settings": {
+				"skipDos2Unix": false,
+				"fileUris": [
+				  "[concat(parameters('_artifactsLocation'), '/wireguard.sh', parameters('_artifactsLocationSasToken'))]"
+				],
+				"commandToExecute": "[concat('bash wireguard.sh ', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))).dnsSettings.fqdn, ' ', parameters('adminUsername'))]"
+			  }
+			}
+		  }
+		]
+	  }
+	]
+  }
