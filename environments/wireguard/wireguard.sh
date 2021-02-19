@@ -48,7 +48,7 @@ PersistentKeepalive = 10
 EOF
 
 ## make server config accessible
-chmod 600 /etc/wireguard/{privatekey,wg0.conf}
+# chmod 600 /etc/wireguard/{privatekey,wg0.conf}
 
 ## configure firewall 
 ufw allow 51820/udp
