@@ -16,19 +16,35 @@ add-apt-repository ppa:wireguard/wireguard -y && apt-get update -y
 apt-get install linux-headers-$(uname -r) wireguard -y
 
 ## generate security keys
-wg genkey | tee /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey
+wg genkey | tee /etc/wireguard/server_privatekey | wg pubkey > /etc/wireguard/server_publickey
+wg genkey | tee /etc/wireguard/client_privatekey | wg pubkey > /etc/wireguard/client_publickey
 
 ## create server config
 cat > /etc/wireguard/wg0.conf << EOF
-
 [Interface]
-Address = 192.168.250.1/24
+Address = 10.200.200.1/24
 SaveConfig = true
-PrivateKey = $(cat /etc/wireguard/privatekey)
+PrivateKey = $(cat /etc/wireguard/server_privatekey)
 ListenPort = 51820
 PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE; ip6tables -A FORWARD -i wg0 -j ACCEPT; ip6tables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE; ip6tables -D FORWARD -i wg0 -j ACCEPT; ip6tables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 
+[Peer]
+PublicKey = $(cat /etc/wireguard/client_publickey)
+AllowedIPs = 0.0.0.0/0
+EOF
+
+cat > /etc/wireguard/wg0-client.conf << EOF
+[Interface]
+Address = 10.200.200.2/32
+PrivateKey = $(cat /etc/wireguard/client_privatekey)
+DNS = $(cat /etc/resolv.conf | grep -i '^nameserver' | head -n1 | cut -d ' ' -f2)
+
+[Peer]
+PublicKey = $(cat /etc/wireguard/server_publickey)
+Endpoint = $(curl ifconf.co):51820
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 10
 EOF
 
 ## make server config accessible
