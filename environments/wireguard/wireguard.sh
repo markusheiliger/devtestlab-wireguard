@@ -51,13 +51,13 @@ EOF
 # chmod 600 /etc/wireguard/{privatekey,wg0.conf}
 
 # ## configure firewall 
-# ufw allow 51820/udp
-# ufw allow 22/tcp
-# ufw enable
+ufw allow 51820/udp
+ufw allow 22/tcp
+ufw --force enable
 
 # ## start WireGuard service
 # wg-quick up wg0
 # systemctl enable wg-quick@wg0
 
 # ## system reboot
-# shutdown -r 0
+apt-get full-upgrade -y && shutdown -r 0
