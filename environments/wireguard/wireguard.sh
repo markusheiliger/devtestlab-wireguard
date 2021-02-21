@@ -3,23 +3,32 @@
 ## init transkript
 exec &> >(tee -a "${0%.*}.log")
 
+trace () {
+    echo -e "\n>>> $@ ...\n"
+}
+
 ## upgrade packages
-apt-get update -y && unattended-upgrades --verbose
+trace "Upgrading packages"
+apt-get update -y && unattended-upgrades
 
 ## enable IP forwarding
+trace "Enabling IP forwarding"
 sed -i -e 's/#net.ipv4.ip_forward.*/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
 sed -i -e 's/#net.ipv6.conf.all.forwarding.*/net.ipv6.conf.all.forwarding=1/g' /etc/sysctl.conf
 sysctl -p
 
 ## install WireGurard
+trace "Installing WireGuard"
 add-apt-repository ppa:wireguard/wireguard -y && apt-get update -y 
 apt-get install linux-headers-$(uname -r) wireguard -y
 
 ## generate security keys
+trace "Generating private & public keys"
 wg genkey | tee /etc/wireguard/server_privatekey | wg pubkey > /etc/wireguard/server_publickey
 wg genkey | tee /etc/wireguard/client_privatekey | wg pubkey > /etc/wireguard/client_publickey
 
 ## create server config
+trace "Generating server config"
 cat > /etc/wireguard/wg0.conf << EOF
 [Interface]
 Address = 10.200.200.1/24
@@ -34,6 +43,7 @@ PublicKey = $(cat /etc/wireguard/client_publickey)
 AllowedIPs = 0.0.0.0/0
 EOF
 
+trace "Generating client config"
 cat > /etc/wireguard/wg0-client.conf << EOF
 [Interface]
 Address = 10.200.200.2/32
@@ -48,9 +58,11 @@ PersistentKeepalive = 10
 EOF
 
 ## make server config accessible
-# chmod 600 /etc/wireguard/{privatekey,wg0.conf}
+trace "Graning config access"
+chmod 600 /etc/wireguard/{wg0.conf,wg0-client.conf}
 
-# ## configure firewall 
+## configure firewall
+trace "Configuring firewall" 
 ufw allow 51820/udp
 ufw allow 22/tcp
 ufw --force enable
@@ -60,4 +72,5 @@ ufw --force enable
 # systemctl enable wg-quick@wg0
 
 # ## system reboot
+trace "Initiate system upgrade & reboot"
 apt-get full-upgrade -y && shutdown -r 0
