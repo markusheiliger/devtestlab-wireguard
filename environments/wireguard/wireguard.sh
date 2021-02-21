@@ -19,17 +19,21 @@ sysctl -p
 
 ## install WireGurard
 trace "Installing WireGuard"
-add-apt-repository ppa:wireguard/wireguard -y && apt-get update -y 
+#add-apt-repository ppa:wireguard/wireguard -y && apt-get update -y 
 apt-get install linux-headers-$(uname -r) wireguard -y
 
+trace "Initialize WireGuard"
+mkdir -p /etc/wireguard && cd /etc/wireguard && umask 077
+
 ## generate security keys
-trace "Generating private & public keys"
-wg genkey | tee /etc/wireguard/server_privatekey | wg pubkey > /etc/wireguard/server_publickey
-wg genkey | tee /etc/wireguard/client_privatekey | wg pubkey > /etc/wireguard/client_publickey
+trace "Generating server keys"
+wg genkey | tee /etc/wireguard/server_privatekey | wg pubkey | tee /etc/wireguard/server_publickey
+trace "Generating client keys"
+wg genkey | tee /etc/wireguard/client_privatekey | wg pubkey | tee /etc/wireguard/client_publickey
 
 ## create server config
 trace "Generating server config"
-cat > /etc/wireguard/wg0.conf << EOF
+cat | tee /etc/wireguard/wg0.conf << EOF
 [Interface]
 Address = 10.200.200.1/24
 SaveConfig = true
@@ -44,7 +48,7 @@ AllowedIPs = 0.0.0.0/0
 EOF
 
 trace "Generating client config"
-cat > /etc/wireguard/wg0-client.conf << EOF
+cat | tee /etc/wireguard/wg0-client.conf << EOF
 [Interface]
 Address = 10.200.200.2/32
 PrivateKey = $(cat /etc/wireguard/client_privatekey)
@@ -52,14 +56,10 @@ DNS = $(cat /etc/resolv.conf | grep -i '^nameserver' | head -n1 | cut -d ' ' -f2
 
 [Peer]
 PublicKey = $(cat /etc/wireguard/server_publickey)
-Endpoint = $(curl ifconf.co):51820
+Endpoint = $(curl -s ifconf.co):51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 10
 EOF
-
-## make server config accessible
-trace "Graning config access"
-chmod 600 /etc/wireguard/{wg0.conf,wg0-client.conf}
 
 ## configure firewall
 trace "Configuring firewall" 
