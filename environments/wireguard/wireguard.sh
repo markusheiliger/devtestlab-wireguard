@@ -44,7 +44,7 @@ PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING 
 
 [Peer]
 PublicKey = $(cat /etc/wireguard/client_publickey)
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 10.200.200.2/32
 EOF
 
 trace "Generating client config"
@@ -67,9 +67,9 @@ ufw allow 51820/udp
 ufw allow 22/tcp
 ufw --force enable
 
-# ## start WireGuard service
-# wg-quick up wg0
-# systemctl enable wg-quick@wg0
+## start WireGuard service
+trace "Starting WireGuard service" 
+systemctl enable --now wg-quick@wg0
 
 # ## system reboot
 trace "Initiate system upgrade & reboot"
