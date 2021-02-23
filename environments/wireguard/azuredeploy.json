@@ -162,9 +162,6 @@
 			"dependsOn": [
 			  "[resourceId('Microsoft.Compute/virtualMachines', variables('virtualMachineName'))]"
 			],
-			"tags": {
-			  "displayName": "AzureWireGuard"
-			},
 			"properties": {
 			  "publisher": "Microsoft.Azure.Extensions",
 			  "type": "CustomScript",
@@ -175,7 +172,7 @@
 				"fileUris": [
 				  "[concat(parameters('_artifactsLocation'), '/wireguard.sh', parameters('_artifactsLocationSasToken'))]"
 				],
-				"commandToExecute": "bash wireguard.sh"
+				"commandToExecute": "[concat('bash wireguard.sh --fgdn ', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))).dnsSettings.fqdn)]"
 			  }
 			}
 		  }
