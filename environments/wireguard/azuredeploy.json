@@ -172,7 +172,7 @@
 				"fileUris": [
 				  "[concat(parameters('_artifactsLocation'), '/wireguard.sh', parameters('_artifactsLocationSasToken'))]"
 				],
-				"commandToExecute": "[concat('bash wireguard.sh --fgdn ', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))).dnsSettings.fqdn)]"
+				"commandToExecute": "[concat('bash wireguard.sh --fqdn ', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPName'))).dnsSettings.fqdn)]"
 			  }
 			}
 		  }
