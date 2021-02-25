@@ -19,7 +19,7 @@ fail () {
     echo >&2 "$@" && exit 1
 }
 
-[ -z "$PARAM_FQDN" ] && fail "Missing WireGuard server FQDN"
+[ -z "$PARAM_HOST" ] && fail "Missing WireGuard server hostname or IP address"
 
 ## upgrade packages
 trace "Upgrading packages"
@@ -70,7 +70,7 @@ DNS = $(cat /etc/resolv.conf | grep -i '^nameserver' | head -n1 | cut -d ' ' -f2
 
 [Peer]
 PublicKey = $(cat /etc/wireguard/server_publickey)
-Endpoint = $PARAM_FQDN:51820
+Endpoint = $PARAM_HOST:51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 10
 EOF
